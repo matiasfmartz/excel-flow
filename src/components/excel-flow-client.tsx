@@ -235,12 +235,12 @@ export function ExcelFlowClient() {
             </div>
             <Card>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <ScrollArea className="h-[500px]">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           {sheetHeaders.map((header, index) => (
-                            <TableHead key={`${header}-${index}`} className="font-bold">{header}</TableHead>
+                            <TableHead key={`${header}-${index}`} className="font-bold sticky top-0 bg-card">{header}</TableHead>
                           ))}
                         </TableRow>
                       </TableHeader>
@@ -254,7 +254,7 @@ export function ExcelFlowClient() {
                         ))}
                       </TableBody>
                     </Table>
-                </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </div>
