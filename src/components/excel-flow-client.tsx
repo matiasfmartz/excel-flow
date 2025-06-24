@@ -37,7 +37,7 @@ export function ExcelFlowClient() {
   const [jsonData, setJsonData] = useState<any[]>([]);
 
   const addLog = useCallback((message: string, type: 'info' | 'error' = 'info') => {
-    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setLogs((prev) => [{ timestamp, message, type }, ...prev]);
   }, []);
 
@@ -50,18 +50,18 @@ export function ExcelFlowClient() {
       selectedFile.name.endsWith('.csv');
 
     if (!isAccepted) {
-      const errorMsg = `Invalid file type: ${selectedFile.name}. Please upload a .xlsx, .xls, or .csv file.`;
+      const errorMsg = `Tipo de archivo inválido: ${selectedFile.name}. Por favor, sube un archivo .xlsx, .xls o .csv.`;
       addLog(errorMsg, 'error');
       toast({
-        title: 'Invalid File Format',
-        description: 'Please upload a valid Excel or CSV file.',
+        title: 'Formato de Archivo Inválido',
+        description: 'Por favor, sube un archivo de Excel o CSV válido.',
         variant: 'destructive',
       });
       setStatus('error');
       return;
     }
 
-    addLog(`File selected: "${selectedFile.name}"`);
+    addLog(`Archivo seleccionado: "${selectedFile.name}"`);
     setFile(selectedFile);
     setProgress(0);
     setSheetHeaders([]);
@@ -72,7 +72,7 @@ export function ExcelFlowClient() {
         try {
             const data = e.target?.result;
             if (!data) {
-                throw new Error("File could not be read.");
+                throw new Error("No se pudo leer el archivo.");
             }
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
@@ -82,21 +82,21 @@ export function ExcelFlowClient() {
             if (parsedData.length > 0 && Object.keys(parsedData[0]).length > 0) {
                 setSheetHeaders(Object.keys(parsedData[0]));
                 setJsonData(parsedData);
-                addLog('File data parsed successfully. Displaying all data from the sheet.');
+                addLog('Datos del archivo analizados con éxito. Mostrando todos los datos de la hoja.');
             } else {
-                addLog('The selected file is empty or has no data.', 'error');
+                addLog('El archivo seleccionado está vacío o no tiene datos.', 'error');
                 toast({
-                    title: 'Empty File',
-                    description: 'The selected Excel or CSV file appears to be empty.',
+                    title: 'Archivo Vacío',
+                    description: 'El archivo de Excel o CSV seleccionado parece estar vacío.',
                     variant: 'destructive',
                 });
                 setStatus('error');
             }
         } catch (error) {
-            const errorMsg = 'Failed to parse the file. It might be corrupted or in an unsupported format.';
+            const errorMsg = 'No se pudo analizar el archivo. Podría estar corrupto o en un formato no compatible.';
             addLog(errorMsg, 'error');
             toast({
-                title: 'File Parsing Error',
+                title: 'Error al Analizar el Archivo',
                 description: errorMsg,
                 variant: 'destructive',
             });
@@ -104,10 +104,10 @@ export function ExcelFlowClient() {
         }
     };
     reader.onerror = () => {
-        const errorMsg = 'An error occurred while reading the file.';
+        const errorMsg = 'Ocurrió un error al leer el archivo.';
         addLog(errorMsg, 'error');
         toast({
-            title: 'File Read Error',
+            title: 'Error al Leer el Archivo',
             description: errorMsg,
             variant: 'destructive',
         });
@@ -120,13 +120,13 @@ export function ExcelFlowClient() {
 
   useEffect(() => {
     if (status === 'uploading' && file) {
-      addLog('Starting file upload...');
+      addLog('Iniciando la carga del archivo...');
       const interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 100) {
             clearInterval(interval);
             setStatus('preview');
-            addLog(`"${file.name}" uploaded successfully. Ready for preview.`);
+            addLog(`"${file.name}" subido con éxito. Listo para previsualizar.`);
             return 100;
           }
           return prev + 10;
@@ -137,7 +137,7 @@ export function ExcelFlowClient() {
   }, [status, file, addLog]);
 
   const simulateBackendProcessing = async (dataToProcess: any[]): Promise<boolean> => {
-    addLog('Data is already structured. Preparing for download...', 'info');
+    addLog('Los datos ya están estructurados. Preparando para la descarga...', 'info');
 
     try {
         const jsonString = JSON.stringify(dataToProcess, null, 2);
@@ -150,10 +150,10 @@ export function ExcelFlowClient() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        addLog('Successfully generated and downloaded processed_data.json.', 'info');
+        addLog('Se generó y descargó processed_data.json con éxito.', 'info');
         return true;
     } catch (error) {
-        addLog('Failed to generate JSON file.', 'error');
+        addLog('No se pudo generar el archivo JSON.', 'error');
         return false;
     }
   };
@@ -161,15 +161,15 @@ export function ExcelFlowClient() {
   const handleProcess = async () => {
     if (!jsonData.length) {
         toast({
-            title: 'No Data to Process',
-            description: 'There is no data to process. Please upload a valid file.',
+            title: 'No Hay Datos para Procesar',
+            description: 'No hay datos para procesar. Por favor, sube un archivo válido.',
             variant: 'destructive',
         });
         return;
     }
 
     setStatus('processing');
-    addLog('Data processing initiated...', 'info');
+    addLog('Procesamiento de datos iniciado...', 'info');
 
     await new Promise(resolve => setTimeout(resolve, 1500));
     
@@ -177,15 +177,15 @@ export function ExcelFlowClient() {
 
     if (success) {
         setStatus('completed');
-        addLog('Data processing completed successfully.', 'info');
+        addLog('Procesamiento de datos completado con éxito.', 'info');
     } else {
         setStatus('error');
         toast({
-            title: 'Processing Failed',
-            description: 'Could not process and generate the JSON file.',
+            title: 'Falló el Procesamiento',
+            description: 'No se pudo procesar y generar el archivo JSON.',
             variant: 'destructive',
         });
-        addLog('Data processing failed.', 'error');
+        addLog('Falló el procesamiento de datos.', 'error');
     }
   };
 
@@ -226,9 +226,9 @@ export function ExcelFlowClient() {
             onClick={() => fileInputRef.current?.click()}
           >
             <UploadCloud className="w-16 h-16 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold text-foreground">Drag & drop your Excel file here</p>
-            <p className="text-sm text-muted-foreground">or click to browse</p>
-            <p className="text-xs text-muted-foreground mt-2">.xlsx, .xls or .csv files only</p>
+            <p className="text-lg font-semibold text-foreground">Arrastra y suelta tu archivo de Excel aquí</p>
+            <p className="text-sm text-muted-foreground">o haz clic para buscar</p>
+            <p className="text-xs text-muted-foreground mt-2">Solo archivos .xlsx, .xls o .csv</p>
             <Input
               ref={fileInputRef}
               type="file"
@@ -239,7 +239,7 @@ export function ExcelFlowClient() {
              {status === 'error' && (
               <div className="absolute bottom-4 flex items-center text-destructive">
                 <XCircle className="w-4 h-4 mr-2" />
-                <span className="text-sm font-medium">File upload failed. Please try again.</span>
+                <span className="text-sm font-medium">La carga del archivo falló. Por favor, inténtalo de nuevo.</span>
               </div>
             )}
           </div>
@@ -249,7 +249,7 @@ export function ExcelFlowClient() {
           <div className="flex flex-col items-center justify-center w-full p-10">
             <File className="w-16 h-16 text-primary mb-4" />
             <p className="text-lg font-semibold text-foreground truncate max-w-full">{file?.name}</p>
-            <p className="text-sm text-muted-foreground mb-4">Uploading...</p>
+            <p className="text-sm text-muted-foreground mb-4">Subiendo...</p>
             <Progress value={progress} className="w-full" />
           </div>
         );
@@ -262,7 +262,7 @@ export function ExcelFlowClient() {
               <FileSpreadsheet className="w-10 h-10 text-primary" />
               <div>
                 <h3 className="text-lg font-bold">{file?.name}</h3>
-                <p className="text-sm text-muted-foreground">Displaying all data from the sheet.</p>
+                <p className="text-sm text-muted-foreground">Mostrando todos los datos de la hoja.</p>
               </div>
             </div>
             <Card>
@@ -300,13 +300,13 @@ export function ExcelFlowClient() {
     switch (status) {
       case 'preview':
         return (
-          <Button onClick={handleProcess} className="w-full sm:w-auto" disabled={jsonData.length === 0}>Confirm and Process Data</Button>
+          <Button onClick={handleProcess} className="w-full sm:w-auto" disabled={jsonData.length === 0}>Confirmar y Procesar Datos</Button>
         );
       case 'processing':
         return (
           <Button disabled className="w-full sm:w-auto">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Processing...
+            Procesando...
           </Button>
         );
       case 'completed':
@@ -314,15 +314,15 @@ export function ExcelFlowClient() {
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
             <div className="flex items-center text-green-600">
               <CheckCircle2 className="mr-2 h-5 w-5" />
-              <p className="font-semibold">Processing Completed</p>
+              <p className="font-semibold">Procesamiento Completado</p>
             </div>
-            <Button onClick={handleReset} variant="outline" className="w-full sm:w-auto sm:ml-auto">Start Over</Button>
+            <Button onClick={handleReset} variant="outline" className="w-full sm:w-auto sm:ml-auto">Empezar de Nuevo</Button>
           </div>
         );
       case 'error':
          return (
           <Button onClick={handleReset} variant="outline" className="w-full sm:w-auto">
-            Try Again
+            Intentar de Nuevo
           </Button>
         );
       default:
@@ -358,7 +358,7 @@ export function ExcelFlowClient() {
             </svg>
             ExcelFlow
           </CardTitle>
-          <CardDescription>Upload, preview, and process your Excel files with ease.</CardDescription>
+          <CardDescription>Sube, previsualiza y procesa tus archivos de Excel con facilidad.</CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>
         {status !== 'idle' && (
@@ -372,7 +372,7 @@ export function ExcelFlowClient() {
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center gap-2">
               <History className="w-5 h-5" />
-              Operation Logs
+              Logs
             </CardTitle>
           </CardHeader>
           <CardContent>
