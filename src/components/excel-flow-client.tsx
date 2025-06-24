@@ -22,6 +22,7 @@ type LogEntry = {
 const ACCEPTED_FILE_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   'application/vnd.ms-excel', // .xls
+  'text/csv', // .csv
 ];
 
 export function ExcelFlowClient() {
@@ -43,16 +44,17 @@ export function ExcelFlowClient() {
   const handleFileSelect = useCallback((selectedFile: File | undefined | null) => {
     if (!selectedFile) return;
 
-    if (
-      !ACCEPTED_FILE_TYPES.includes(selectedFile.type) &&
-      !selectedFile.name.endsWith('.xlsx') &&
-      !selectedFile.name.endsWith('.xls')
-    ) {
-      const errorMsg = `Invalid file type: ${selectedFile.name}. Please upload a .xlsx or .xls file.`;
+    const isAccepted = ACCEPTED_FILE_TYPES.some(type => selectedFile.type.startsWith(type)) ||
+      selectedFile.name.endsWith('.xlsx') ||
+      selectedFile.name.endsWith('.xls') ||
+      selectedFile.name.endsWith('.csv');
+
+    if (!isAccepted) {
+      const errorMsg = `Invalid file type: ${selectedFile.name}. Please upload a .xlsx, .xls, or .csv file.`;
       addLog(errorMsg, 'error');
       toast({
         title: 'Invalid File Format',
-        description: 'Please upload a valid Excel file (.xlsx, .xls).',
+        description: 'Please upload a valid Excel or CSV file.',
         variant: 'destructive',
       });
       setStatus('error');
@@ -77,21 +79,21 @@ export function ExcelFlowClient() {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             
-            if (jsonData.length > 0) {
+            if (jsonData.length > 0 && jsonData[0].length > 0) {
                 setSheetHeaders(jsonData[0].map(String));
                 setSheetData(jsonData.slice(1));
-                addLog('Excel data parsed successfully. Displaying all data from the sheet.');
+                addLog('File data parsed successfully. Displaying all data from the sheet.');
             } else {
-                addLog('The selected Excel file is empty.', 'error');
+                addLog('The selected file is empty or has no headers.', 'error');
                 toast({
                     title: 'Empty File',
-                    description: 'The selected Excel file appears to be empty.',
+                    description: 'The selected Excel or CSV file appears to be empty.',
                     variant: 'destructive',
                 });
                 setStatus('error');
             }
         } catch (error) {
-            const errorMsg = 'Failed to parse the Excel file. It might be corrupted or in an unsupported format.';
+            const errorMsg = 'Failed to parse the file. It might be corrupted or in an unsupported format.';
             addLog(errorMsg, 'error');
             toast({
                 title: 'File Parsing Error',
@@ -134,13 +136,65 @@ export function ExcelFlowClient() {
     }
   }, [status, file, addLog]);
 
-  const handleProcess = () => {
+  const simulateBackendProcessing = async (headers: string[], data: any[][]): Promise<boolean> => {
+    addLog('Converting data to structured JSON...', 'info');
+    
+    const jsonData = data.map(row => {
+        const rowObject: { [key: string]: any } = {};
+        headers.forEach((header, index) => {
+            rowObject[header] = row[index] !== undefined ? row[index] : null;
+        });
+        return rowObject;
+    });
+
+    try {
+        const jsonString = JSON.stringify(jsonData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'processed_data.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        addLog('Successfully generated and downloaded processed_data.json.', 'info');
+        return true;
+    } catch (error) {
+        addLog('Failed to generate JSON file.', 'error');
+        return false;
+    }
+  };
+
+  const handleProcess = async () => {
+    if (!sheetHeaders.length || !sheetData.length) {
+        toast({
+            title: 'No Data to Process',
+            description: 'There is no data to process. Please upload a valid file.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     setStatus('processing');
-    addLog('Data processing initiated...');
-    setTimeout(() => {
-      setStatus('completed');
-      addLog('Data processing completed successfully.');
-    }, 3000);
+    addLog('Data processing initiated...', 'info');
+
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const success = await simulateBackendProcessing(sheetHeaders, sheetData);
+
+    if (success) {
+        setStatus('completed');
+        addLog('Data processing completed successfully.', 'info');
+    } else {
+        setStatus('error');
+        toast({
+            title: 'Processing Failed',
+            description: 'Could not process and generate the JSON file.',
+            variant: 'destructive',
+        });
+        addLog('Data processing failed.', 'error');
+    }
   };
 
   const handleReset = () => {
@@ -152,23 +206,9 @@ export function ExcelFlowClient() {
     setSheetData([]);
   };
 
-  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
+  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); };
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -196,12 +236,12 @@ export function ExcelFlowClient() {
             <UploadCloud className="w-16 h-16 text-muted-foreground mb-4" />
             <p className="text-lg font-semibold text-foreground">Drag & drop your Excel file here</p>
             <p className="text-sm text-muted-foreground">or click to browse</p>
-            <p className="text-xs text-muted-foreground mt-2">.xlsx or .xls files only</p>
+            <p className="text-xs text-muted-foreground mt-2">.xlsx, .xls or .csv files only</p>
             <Input
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
               onChange={(e) => handleFileSelect(e.target.files?.[0])}
             />
              {status === 'error' && (
