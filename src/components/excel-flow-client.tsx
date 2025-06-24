@@ -74,24 +74,33 @@ export function ExcelFlowClient() {
             if (!data) {
                 throw new Error("No se pudo leer el archivo.");
             }
-            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const parsedData: any[] = XLSX.utils.sheet_to_json(worksheet, {
-                header: 1, // Treat first row as headers
-                defval: '', // Set default value for empty cells
+
+            // Manual parsing to handle complex headers and ensure all columns are included
+            const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+            const headers: string[] = [];
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cell_address = { c: C, r: range.s.r };
+                const cell_ref = XLSX.utils.encode_cell(cell_address);
+                const cell = worksheet[cell_ref];
+                headers[C] = cell ? XLSX.utils.format_cell(cell) : `Columna ${C + 1}`;
+            }
+
+            // Using sheet_to_json with header: 1 to get array of arrays
+            const dataAsArray: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1,
+                defval: '',
+                blankrows: true, 
+                raw: false, // Get formatted text for dates
             });
 
-            if (parsedData.length > 1) {
-                const headers = parsedData[0];
-                const rows = parsedData.slice(1).map(row => {
+            if (dataAsArray.length > 1) {
+                 const rows = dataAsArray.slice(1).map(rowArray => {
                     const rowData: { [key: string]: any } = {};
-                    headers.forEach((header: any, index: number) => {
-                        let cellValue = row[index];
-                        if (cellValue instanceof Date) {
-                            cellValue = cellValue.toLocaleString('es-ES');
-                        }
-                        rowData[header] = cellValue;
+                    headers.forEach((header, index) => {
+                       rowData[header] = rowArray[index] ?? '';
                     });
                     return rowData;
                 });
@@ -99,6 +108,7 @@ export function ExcelFlowClient() {
                 setSheetHeaders(headers);
                 setJsonData(rows);
                 addLog('Datos del archivo analizados con éxito. Mostrando todos los datos de la hoja.');
+
             } else {
                 addLog('El archivo seleccionado está vacío o no tiene datos.', 'error');
                 toast({
@@ -265,7 +275,7 @@ export function ExcelFlowClient() {
           <div className="flex flex-col items-center justify-center w-full p-10">
             <File className="w-16 h-16 text-primary mb-4" />
             <p className="text-lg font-semibold text-foreground truncate max-w-full">{file?.name}</p>
-            <p className="text-sm text-muted-foreground mb-4">Subiendo...</p>
+            <p className="text-sm text-muted-foreground">Subiendo...</p>
             <Progress value={progress} className="w-full" />
           </div>
         );
@@ -288,7 +298,7 @@ export function ExcelFlowClient() {
                       <TableHeader>
                         <TableRow>
                           {sheetHeaders.map((header, index) => (
-                            <TableHead key={`${header}-${index}`} className="font-bold sticky top-0 bg-card whitespace-nowrap">{header}</TableHead>
+                            <TableHead key={`${header}-${index}`} className="font-bold sticky top-0 bg-card whitespace-nowrap px-2 py-1">{header}</TableHead>
                           ))}
                         </TableRow>
                       </TableHeader>
@@ -296,7 +306,7 @@ export function ExcelFlowClient() {
                         {jsonData.map((row, rowIndex) => (
                           <TableRow key={rowIndex}>
                             {sheetHeaders.map((header, cellIndex) => (
-                              <TableCell key={cellIndex} className="whitespace-nowrap">{String(row[header] ?? '')}</TableCell>
+                              <TableCell key={cellIndex} className="whitespace-nowrap px-2 py-1">{String(row[header] ?? '')}</TableCell>
                             ))}
                           </TableRow>
                         ))}
