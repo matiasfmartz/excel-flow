@@ -74,14 +74,30 @@ export function ExcelFlowClient() {
             if (!data) {
                 throw new Error("No se pudo leer el archivo.");
             }
-            const workbook = XLSX.read(data, { type: 'array' });
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const parsedData: any[] = XLSX.utils.sheet_to_json(worksheet);
-            
-            if (parsedData.length > 0 && Object.keys(parsedData[0]).length > 0) {
-                setSheetHeaders(Object.keys(parsedData[0]));
-                setJsonData(parsedData);
+            const parsedData: any[] = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1, // Treat first row as headers
+                defval: '', // Set default value for empty cells
+            });
+
+            if (parsedData.length > 1) {
+                const headers = parsedData[0];
+                const rows = parsedData.slice(1).map(row => {
+                    const rowData: { [key: string]: any } = {};
+                    headers.forEach((header: any, index: number) => {
+                        let cellValue = row[index];
+                        if (cellValue instanceof Date) {
+                            cellValue = cellValue.toLocaleString('es-ES');
+                        }
+                        rowData[header] = cellValue;
+                    });
+                    return rowData;
+                });
+                
+                setSheetHeaders(headers);
+                setJsonData(rows);
                 addLog('Datos del archivo analizados con éxito. Mostrando todos los datos de la hoja.');
             } else {
                 addLog('El archivo seleccionado está vacío o no tiene datos.', 'error');
@@ -267,12 +283,12 @@ export function ExcelFlowClient() {
             </div>
             <Card>
               <CardContent className="p-0">
-                <ScrollArea className="h-[500px]">
+                <ScrollArea className="h-[500px] w-full">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           {sheetHeaders.map((header, index) => (
-                            <TableHead key={`${header}-${index}`} className="font-bold sticky top-0 bg-card">{header}</TableHead>
+                            <TableHead key={`${header}-${index}`} className="font-bold sticky top-0 bg-card whitespace-nowrap">{header}</TableHead>
                           ))}
                         </TableRow>
                       </TableHeader>
@@ -280,7 +296,7 @@ export function ExcelFlowClient() {
                         {jsonData.map((row, rowIndex) => (
                           <TableRow key={rowIndex}>
                             {sheetHeaders.map((header, cellIndex) => (
-                              <TableCell key={cellIndex}>{String(row[header] ?? '')}</TableCell>
+                              <TableCell key={cellIndex} className="whitespace-nowrap">{String(row[header] ?? '')}</TableCell>
                             ))}
                           </TableRow>
                         ))}
