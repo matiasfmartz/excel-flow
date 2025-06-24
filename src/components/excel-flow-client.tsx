@@ -34,7 +34,7 @@ export function ExcelFlowClient() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
-  const [sheetData, setSheetData] = useState<any[][]>([]);
+  const [jsonData, setJsonData] = useState<any[]>([]);
 
   const addLog = useCallback((message: string, type: 'info' | 'error' = 'info') => {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -65,7 +65,7 @@ export function ExcelFlowClient() {
     setFile(selectedFile);
     setProgress(0);
     setSheetHeaders([]);
-    setSheetData([]);
+    setJsonData([]);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -77,14 +77,14 @@ export function ExcelFlowClient() {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            const parsedData: any[] = XLSX.utils.sheet_to_json(worksheet);
             
-            if (jsonData.length > 0 && jsonData[0].length > 0) {
-                setSheetHeaders(jsonData[0].map(String));
-                setSheetData(jsonData.slice(1));
+            if (parsedData.length > 0 && Object.keys(parsedData[0]).length > 0) {
+                setSheetHeaders(Object.keys(parsedData[0]));
+                setJsonData(parsedData);
                 addLog('File data parsed successfully. Displaying all data from the sheet.');
             } else {
-                addLog('The selected file is empty or has no headers.', 'error');
+                addLog('The selected file is empty or has no data.', 'error');
                 toast({
                     title: 'Empty File',
                     description: 'The selected Excel or CSV file appears to be empty.',
@@ -136,19 +136,11 @@ export function ExcelFlowClient() {
     }
   }, [status, file, addLog]);
 
-  const simulateBackendProcessing = async (headers: string[], data: any[][]): Promise<boolean> => {
-    addLog('Converting data to structured JSON...', 'info');
-    
-    const jsonData = data.map(row => {
-        const rowObject: { [key: string]: any } = {};
-        headers.forEach((header, index) => {
-            rowObject[header] = row[index] !== undefined ? row[index] : null;
-        });
-        return rowObject;
-    });
+  const simulateBackendProcessing = async (dataToProcess: any[]): Promise<boolean> => {
+    addLog('Data is already structured. Preparing for download...', 'info');
 
     try {
-        const jsonString = JSON.stringify(jsonData, null, 2);
+        const jsonString = JSON.stringify(dataToProcess, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -167,7 +159,7 @@ export function ExcelFlowClient() {
   };
 
   const handleProcess = async () => {
-    if (!sheetHeaders.length || !sheetData.length) {
+    if (!jsonData.length) {
         toast({
             title: 'No Data to Process',
             description: 'There is no data to process. Please upload a valid file.',
@@ -181,7 +173,7 @@ export function ExcelFlowClient() {
 
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const success = await simulateBackendProcessing(sheetHeaders, sheetData);
+    const success = await simulateBackendProcessing(jsonData);
 
     if (success) {
         setStatus('completed');
@@ -203,7 +195,7 @@ export function ExcelFlowClient() {
     setProgress(0);
     setLogs([]);
     setSheetHeaders([]);
-    setSheetData([]);
+    setJsonData([]);
   };
 
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
@@ -285,10 +277,10 @@ export function ExcelFlowClient() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {sheetData.map((row, rowIndex) => (
+                        {jsonData.map((row, rowIndex) => (
                           <TableRow key={rowIndex}>
-                            {row.map((cell, cellIndex) => (
-                              <TableCell key={cellIndex}>{String(cell)}</TableCell>
+                            {sheetHeaders.map((header, cellIndex) => (
+                              <TableCell key={cellIndex}>{String(row[header] ?? '')}</TableCell>
                             ))}
                           </TableRow>
                         ))}
@@ -308,7 +300,7 @@ export function ExcelFlowClient() {
     switch (status) {
       case 'preview':
         return (
-          <Button onClick={handleProcess} className="w-full sm:w-auto" disabled={sheetData.length === 0}>Confirm and Process Data</Button>
+          <Button onClick={handleProcess} className="w-full sm:w-auto" disabled={jsonData.length === 0}>Confirm and Process Data</Button>
         );
       case 'processing':
         return (
