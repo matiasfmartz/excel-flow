@@ -79,8 +79,8 @@ export function ExcelFlowClient() {
             
             if (jsonData.length > 0) {
                 setSheetHeaders(jsonData[0].map(String));
-                setSheetData(jsonData.slice(1, 6));
-                addLog('Excel data parsed successfully. Displaying preview.');
+                setSheetData(jsonData.slice(1));
+                addLog('Excel data parsed successfully. Displaying all data from the sheet.');
             } else {
                 addLog('The selected Excel file is empty.', 'error');
                 toast({
@@ -230,7 +230,7 @@ export function ExcelFlowClient() {
               <FileSpreadsheet className="w-10 h-10 text-primary" />
               <div>
                 <h3 className="text-lg font-bold">{file?.name}</h3>
-                <p className="text-sm text-muted-foreground">Preview of the first 5 rows.</p>
+                <p className="text-sm text-muted-foreground">Displaying all data from the sheet.</p>
               </div>
             </div>
             <Card>
