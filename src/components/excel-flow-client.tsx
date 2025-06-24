@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, type DragEvent } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,15 +19,6 @@ type LogEntry = {
   type: 'info' | 'error';
 };
 
-const mockHeaders = ['ID', 'Product Name', 'Quantity', 'Price', 'Category'];
-const mockData = [
-  ['101', 'Quantum Widget', '250', '$19.99', 'Electronics'],
-  ['102', 'Hyper Gasket', '1500', '$2.50', 'Industrial'],
-  ['103', 'Nano Screw', '10000', '$0.05', 'Hardware'],
-  ['104', 'Celestial Fabric', '500m', '$120/m', 'Textiles'],
-  ['105', 'Omega Lubricant', '300L', '$45/L', 'Automotive'],
-];
-
 const ACCEPTED_FILE_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   'application/vnd.ms-excel', // .xls
@@ -40,6 +32,8 @@ export function ExcelFlowClient() {
   const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
+  const [sheetData, setSheetData] = useState<any[][]>([]);
 
   const addLog = useCallback((message: string, type: 'info' | 'error' = 'info') => {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -68,6 +62,57 @@ export function ExcelFlowClient() {
     addLog(`File selected: "${selectedFile.name}"`);
     setFile(selectedFile);
     setProgress(0);
+    setSheetHeaders([]);
+    setSheetData([]);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = e.target?.result;
+            if (!data) {
+                throw new Error("File could not be read.");
+            }
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            if (jsonData.length > 0) {
+                setSheetHeaders(jsonData[0].map(String));
+                setSheetData(jsonData.slice(1, 6));
+                addLog('Excel data parsed successfully. Displaying preview.');
+            } else {
+                addLog('The selected Excel file is empty.', 'error');
+                toast({
+                    title: 'Empty File',
+                    description: 'The selected Excel file appears to be empty.',
+                    variant: 'destructive',
+                });
+                setStatus('error');
+            }
+        } catch (error) {
+            const errorMsg = 'Failed to parse the Excel file. It might be corrupted or in an unsupported format.';
+            addLog(errorMsg, 'error');
+            toast({
+                title: 'File Parsing Error',
+                description: errorMsg,
+                variant: 'destructive',
+            });
+            setStatus('error');
+        }
+    };
+    reader.onerror = () => {
+        const errorMsg = 'An error occurred while reading the file.';
+        addLog(errorMsg, 'error');
+        toast({
+            title: 'File Read Error',
+            description: errorMsg,
+            variant: 'destructive',
+        });
+        setStatus('error');
+    };
+    reader.readAsArrayBuffer(selectedFile);
+
     setStatus('uploading');
   }, [addLog, toast]);
 
@@ -103,6 +148,8 @@ export function ExcelFlowClient() {
     setFile(null);
     setProgress(0);
     setLogs([]);
+    setSheetHeaders([]);
+    setSheetData([]);
   };
 
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
@@ -192,16 +239,16 @@ export function ExcelFlowClient() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          {mockHeaders.map((header) => (
-                            <TableHead key={header} className="font-bold">{header}</TableHead>
+                          {sheetHeaders.map((header, index) => (
+                            <TableHead key={`${header}-${index}`} className="font-bold">{header}</TableHead>
                           ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {mockData.map((row, rowIndex) => (
+                        {sheetData.map((row, rowIndex) => (
                           <TableRow key={rowIndex}>
                             {row.map((cell, cellIndex) => (
-                              <TableCell key={cellIndex}>{cell}</TableCell>
+                              <TableCell key={cellIndex}>{String(cell)}</TableCell>
                             ))}
                           </TableRow>
                         ))}
@@ -221,7 +268,7 @@ export function ExcelFlowClient() {
     switch (status) {
       case 'preview':
         return (
-          <Button onClick={handleProcess} className="w-full sm:w-auto">Confirm and Process Data</Button>
+          <Button onClick={handleProcess} className="w-full sm:w-auto" disabled={sheetData.length === 0}>Confirm and Process Data</Button>
         );
       case 'processing':
         return (
