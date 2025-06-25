@@ -1,45 +1,28 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dependencias
 /node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Directorios de build de Next.js
 /.next/
 /out/
 
-# production
-/build
+# Archivos de caché de Turbopack
+.turbo
 
-# misc
-.DS_Store
-*.pem
+# Archivos de entorno local (no deben subirse a un repositorio)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# debug
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# vercel
-.vercel
+# Directorios específicos del editor
+.vscode/*
+!.vscode/settings.json
+.idx/
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-.genkit/*
-.env*
-
-# firebase
-firebase-debug.log
-firestore-debug.log
+# Archivos de sistema operativo
+.DS_Store
